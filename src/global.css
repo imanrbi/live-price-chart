@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+html,
+body {
+  @apply h-full;
+}
+
+body {
+  @apply bg-gray-950;
+}
+
+.y-axis-grid line {
+  @apply stroke-[0.1px] stroke-gray-600/50;
+}
+
+.y-axis-grid text {
+  @apply text-gray-600 text-[8px];
+}
+
+.y-axis-grid .domain {
+  @apply stroke-gray-600/10;
+}
