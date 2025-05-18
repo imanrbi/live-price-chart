@@ -15,12 +15,8 @@ export default function App() {
   useEffect(() => {
     loadInitialData();
     onMessage((data) => {
-      const newPrice = +data.c;
       setData((prev) => {
-        if (prev[prev.length - 1] !== newPrice) {
-          return [...prev, newPrice];
-        }
-        return prev;
+        return [...prev, +data.c];
       });
     });
   }, []);
