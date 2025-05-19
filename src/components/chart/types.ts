@@ -4,3 +4,8 @@ export type Margin = {
   left: number;
   right: number;
 };
+
+export type DataPoint = {
+  x: number;
+  y: number;
+};

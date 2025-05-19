@@ -2,27 +2,8 @@ import { forwardRef } from "react";
 
 type ChartLineProps = {
   fullPath: string;
-  animatedSegment: string | null;
-  pathLength: number;
 };
 
-export const ChartLine = forwardRef<SVGPathElement, ChartLineProps>(
-  ({ fullPath, animatedSegment, pathLength }, ref) => {
-    return (
-      <>
-        <path d={fullPath} className="stroke-blue-600 stroke-1 fill-none" />
-        {animatedSegment && (
-          <path
-            d={animatedSegment}
-            className="stroke-blue-600 stroke-1 fill-none"
-            ref={ref}
-            style={{
-              strokeDasharray: pathLength || 1,
-              strokeDashoffset: pathLength || 1,
-            }}
-          />
-        )}
-      </>
-    );
-  },
-);
+export const ChartLine = forwardRef<SVGPathElement, ChartLineProps>(({ fullPath }, ref) => {
+  return <path d={fullPath} ref={ref} className="stroke-blue-600 stroke-0.5 fill-none" />;
+});

@@ -9,14 +9,17 @@ body {
   @apply bg-gray-950;
 }
 
-.y-axis-grid line {
+.y-axis-grid line,
+.x-axis-grid line {
   @apply stroke-[0.1px] stroke-gray-600/50;
 }
 
-.y-axis-grid text {
+.y-axis-grid text,
+.x-axis-grid text {
   @apply text-gray-600 text-[8px];
 }
 
-.y-axis-grid .domain {
-  @apply stroke-gray-600/10;
+.y-axis-grid .domain,
+.x-axis-grid .domain {
+  @apply stroke-[0.1px] stroke-gray-200;
 }

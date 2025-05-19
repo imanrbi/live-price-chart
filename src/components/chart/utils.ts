@@ -1,86 +1,75 @@
 import anime from "animejs";
-import { curveBasis, line, type ScaleLinear } from "d3";
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import { curveBasis, interpolate, line, type ScaleLinear, type ScaleTime } from "d3";
+import type { RefObject } from "react";
+import type { DataPoint } from "./types";
 
-type AnimateChartSegmentProps = {
-  isAnimatingRef: RefObject<boolean>;
+type AnimateDotProps = {
   pathRef: RefObject<SVGPathElement | null>;
   dotRef: RefObject<SVGGElement | null>;
-  pathLength: number;
-  animatedSegment: string;
-  setFullPath: Dispatch<SetStateAction<string>>;
-  setAnimatedSegment: Dispatch<SetStateAction<string | null>>;
 };
 
-export const animateChartSegment = ({
-  isAnimatingRef,
-  pathRef,
-  pathLength,
-  animatedSegment,
-  setFullPath,
-  setAnimatedSegment,
-  dotRef,
-}: AnimateChartSegmentProps) => {
-  isAnimatingRef.current = true;
-  anime({
-    targets: pathRef.current,
-    strokeDashoffset: [pathLength, 0],
-    duration: 500,
-    easing: "linear",
-    complete: () => {
-      if (animatedSegment) {
-        setFullPath((prev) => {
-          const joined = `${prev}${animatedSegment.replace(/^M/, "L")}`;
-          return joined;
-        });
-        setAnimatedSegment(null);
-      }
-      isAnimatingRef.current = false;
-    },
-  });
+export const animateDot = ({ pathRef, dotRef }: AnimateDotProps) => {
   if (pathRef.current && dotRef.current) {
     const path = pathRef.current;
     const length = path.getTotalLength();
     anime({
       targets: { t: 0 },
       t: length,
-      duration: 500,
+      duration: 3000,
       easing: "linear",
-      update: (anim) => {
-        const point = path.getPointAtLength(Number(anim.animations[0].currentValue));
+      update: () => {
+        const point = path.getPointAtLength(path.getTotalLength());
         dotRef.current!.setAttribute("transform", `translate(${point.x.toString()},${point.y.toString()})`);
       },
     });
   }
 };
 
+type AnimateLineProps = {
+  fullPath: string;
+  newFullPath: string;
+  setFullPath: (newPath: string) => void;
+};
+
+export const animateLine = ({ fullPath, newFullPath, setFullPath }: AnimateLineProps) => {
+  const interpolator = interpolate(fullPath, newFullPath);
+  const target = { t: 0 };
+  anime({
+    targets: target,
+    t: 1,
+    duration: 3000,
+    easing: "linear",
+    update: () => {
+      setFullPath(interpolator(target.t));
+    },
+  });
+};
+
 export const lineBuilder = (
-  data: number[],
-  xScale: ScaleLinear<number, number>,
+  data: DataPoint[],
+  xScale: ScaleTime<number, number>,
   yScale: ScaleLinear<number, number>,
-  section: "initialized" | "animated",
-  length: number,
 ) => {
-  const path = line<number>()
-    .x((_, i) => xScale(section == "initialized" ? i : length + i - 2))
-    .y((d) => yScale(d))
+  const path = line<DataPoint>()
+    .x((d) => xScale(d.x))
+    .y((d) => yScale(d.y))
     .curve(curveBasis)(data);
   return path ?? "M0,0";
 };
 
-type AnimateYDomainProps = {
+type AnimateDomainProps = {
   from: [number, number];
   to: [number, number];
   onUpdate: (newValue: [number, number]) => void;
 };
 
-export const animateYDomain = ({ from, to, onUpdate }: AnimateYDomainProps) => {
+export const animateDomain = ({ from, to, onUpdate }: AnimateDomainProps) => {
   const animated = { min: from[0], max: from[1] };
   anime({
     targets: animated,
     min: to[0],
     max: to[1],
-    duration: 500,
+    duration: 1000,
     easing: "linear",
     update: () => onUpdate([animated.min, animated.max]),
   });

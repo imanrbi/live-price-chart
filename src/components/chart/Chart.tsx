@@ -3,17 +3,18 @@ import { ChartCard } from "./ChartCard";
 import { ChartDot } from "./ChartDot";
 import { ChartLine } from "./ChartLine";
 import { ChartLoading } from "./ChartLoading";
+import { ChartXAxis } from "./ChartXAxis";
 import { ChartYAxis } from "./ChartYAxis";
-import { useScales, useYAxis } from "./hooks";
-import type { Margin } from "./types";
-import { animateChartSegment, animateYDomain, lineBuilder } from "./utils";
+import { useScales, useXAxis, useYAxis } from "./hooks";
+import type { DataPoint, Margin } from "./types";
+import { animateDomain, animateDot, animateLine, lineBuilder } from "./utils";
 
 interface LineChartProps extends SVGProps<SVGSVGElement> {
   width?: number;
   height?: number;
   margin?: Margin;
   isLoading?: boolean;
-  data: number[];
+  data: DataPoint[];
 }
 
 export default function Chart({
@@ -27,76 +28,66 @@ export default function Chart({
   const pathRef = useRef<SVGPathElement>(null);
   const dotRef = useRef<SVGCircleElement>(null);
   const yAxisRef = useRef<SVGGElement>(null);
-  const isAnimatingRef = useRef(false);
-  const firstDataLengthRef = useRef<number | null>(null);
+  const xAxisRef = useRef<SVGGElement>(null);
 
   const svgWidth = width - margin.left - margin.right;
   const svgHeight = height - margin.top - margin.bottom;
 
-  const [pathLength, setPathLength] = useState(0);
-  const [fullPath, setFullPath] = useState("");
-  const [animatedSegment, setAnimatedSegment] = useState<string | null>(null);
+  const [fullPath, setFullPath] = useState<string>("");
   const [yDomain, setYDomain] = useState<[number, number] | null>(null);
-  const { yScale, xScale } = useScales({ svgWidth, svgHeight, yDomain });
-  useYAxis({ yScale, svgWidth, yAxisRef });
+  const [xDomain, setXDomain] = useState<[number, number] | null>(null);
 
-  useEffect(() => {
-    if (animatedSegment && animatedSegment !== "" && pathRef.current) {
-      animateChartSegment({
-        animatedSegment,
-        dotRef,
-        isAnimatingRef,
-        pathLength,
-        pathRef,
-        setAnimatedSegment,
-        setFullPath,
-      });
-    }
-  }, [animatedSegment, pathLength]);
+  const { yScale, xScale } = useScales({ svgWidth, svgHeight, yDomain, xDomain });
+  useYAxis({ yScale, svgWidth, yAxisRef });
+  useXAxis({ xScale, svgHeight, xAxisRef });
 
   useEffect(() => {
     if (data.length < 2) return;
 
-    if (firstDataLengthRef.current === null) {
-      firstDataLengthRef.current = data.length;
-    }
-
-    const newMax = Math.max(...data) * 1.0005;
-    const newMin = Math.min(...data) * 0.9995;
+    const newYMin = Math.min(...data.map((d) => d.y)) * 0.9995;
+    const newYMax = Math.max(...data.map((d) => d.y)) * 1.0005;
 
     if (yDomain === null) {
-      setYDomain([newMin, newMax]);
-    } else if (newMin !== yDomain[0] || newMax !== yDomain[1]) {
-      animateYDomain({ from: yDomain, to: [newMin, newMax], onUpdate: setYDomain });
+      setYDomain([newYMin, newYMax]);
+    } else if (newYMin !== yDomain[0] || newYMax !== yDomain[1]) {
+      animateDomain({ from: yDomain, to: [newYMin, newYMax], onUpdate: setYDomain });
     }
 
-    if (isAnimatingRef.current || !yDomain) return;
+    const now = Date.now();
+    const newXMin = now - 60_000;
+    const newXMax = now + 30_000;
 
-    const newFullPath = lineBuilder(data.slice(0, -1), xScale, yScale, "initialized", data.length);
+    if (xDomain === null) {
+      setXDomain([newXMin, newXMax]);
+    } else {
+      animateDomain({ from: xDomain, to: [newXMin, newXMax], onUpdate: setXDomain });
+    }
 
-    const lastTwo = data.slice(-2);
-    const segment = lastTwo.length === 2 ? lineBuilder(lastTwo, xScale, yScale, "animated", data.length) : null;
+    if (!yDomain || !xDomain) return;
 
-    setFullPath(newFullPath);
-    setAnimatedSegment(segment);
+    const newFullPath = lineBuilder(
+      data.filter((d) => d.x >= newXMin && d.x <= newXMax),
+      xScale,
+      yScale,
+    );
+
+    if (fullPath === "") {
+      setFullPath(newFullPath);
+    } else {
+      animateLine({ fullPath, newFullPath, setFullPath });
+    }
+
+    animateDot({
+      pathRef,
+      dotRef,
+    });
   }, [data]);
 
-  useEffect(() => {
-    if (animatedSegment && pathRef.current) {
-      setPathLength(pathRef.current.getTotalLength());
-    }
-  }, [animatedSegment]);
-
-  const pathTransform = useMemo(() => {
-    const offset = xScale(data.length - (firstDataLengthRef.current ?? 0));
-    return `translate(${Math.floor(margin.left - offset)},${margin.top})`;
-  }, [data, margin, xScale]);
-
   const lastPoint = useMemo(() => {
-    if (!data.length) return { value: 0, transform: `translate(${svgWidth},0)` };
+    if (!data.length) return { value: 0, transform: `translate(${svgWidth - 64},${Math.floor(svgHeight / 2)})` };
     return {
-      value: data[data.length - 1],
-      transform: `translate(${svgWidth - 64}, ${yScale(data[data.length - 1]) - 12})`,
+      value: data[data.length - 1].y,
+      transform: `translate(${svgWidth - 64}, ${yScale(data[data.length - 1].y) - 12})`,
     };
   }, [data, svgWidth, yScale]);
 
@@ -105,11 +96,10 @@ export default function Chart({
       <ChartLoading isLoading={!fullPath || isLoading} />
       <svg {...props} viewBox={`0 0 ${width} ${height}`}>
         <ChartYAxis ref={yAxisRef} margin={margin} />
-        <g transform={pathTransform} className="transition-transform ease-linear duration-1000">
-          <ChartLine ref={pathRef} animatedSegment={animatedSegment} fullPath={fullPath} pathLength={pathLength} />
-          <ChartDot ref={dotRef} />
-        </g>
-        <ChartCard transform={lastPoint.transform} className="transition-transform duration-1000">
+        <ChartXAxis ref={xAxisRef} margin={margin} />
+        <ChartLine ref={pathRef} fullPath={fullPath} />
+        <ChartDot ref={dotRef} />
+        <ChartCard transform={lastPoint.transform} className="transition-transform ease-linear duration-[3s]">
           {lastPoint.value}
         </ChartCard>
       </svg>

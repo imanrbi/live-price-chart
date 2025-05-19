@@ -4,19 +4,30 @@ import { useBinanceSocket } from "@/hooks";
 import { useEffect, useState } from "react";
 
 export default function App() {
-  const [data, setData] = useState<number[]>([]);
-  const { onMessage } = useBinanceSocket("btcusdt", "ticker");
+  const [data, setData] = useState<{ x: number; y: number }[]>([]);
+  const { onMessage } = useBinanceSocket("btcusdt", "kline", "1s");
 
   const loadInitialData = async () => {
-    const initialData = await getBinanceKLines({ symbol: "BTCUSDT", limit: 100, interval: "1s" });
-    setData(initialData.map((values) => +values[4]));
+    const initialData = await getBinanceKLines({ symbol: "BTCUSDT", limit: 60, interval: "1s" });
+    setData(
+      initialData.map((values) => ({
+        x: +values[6],
+        y: +values[4],
+      })),
+    );
   };
 
   useEffect(() => {
     loadInitialData();
     onMessage((data) => {
       setData((prev) => {
-        return [...prev, +data.c];
+        return [
+          ...prev,
+          {
+            x: data.k.T,
+            y: +data.k.c,
+          },
+        ];
       });
     });
   }, []);
