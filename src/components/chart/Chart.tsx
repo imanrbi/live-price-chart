@@ -54,7 +54,7 @@ export default function Chart({
     }
 
     const now = Date.now();
-    const newXMin = now - 60_000;
+    const newXMin = now - 50_000;
     const newXMax = now + 30_000;
 
     if (xDomain === null) {
@@ -65,11 +65,7 @@ export default function Chart({
 
     if (!yDomain || !xDomain) return;
 
-    const newFullPath = lineBuilder(
-      data.filter((d) => d.x >= newXMin && d.x <= newXMax),
-      xScale,
-      yScale,
-    );
+    const newFullPath = lineBuilder(data, xScale, yScale);
 
     if (fullPath === "") {
       setFullPath(newFullPath);

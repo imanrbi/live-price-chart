@@ -21,6 +21,7 @@ export default function App() {
     loadInitialData();
     onMessage((data) => {
       setData((prev) => {
+        prev.shift();
         return [
           ...prev,
           {
